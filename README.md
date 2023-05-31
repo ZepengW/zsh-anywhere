@@ -21,5 +21,11 @@ sh zsh-anywhere.sh
 
 
 ## Q&A
-1. When you encounter network problems.
+__When you encounter network problems.__
+
 This project is downloaded from the China mirror by default. If you find access difficulties in regions outside of China, please execute the command: `sh zsh-anywhere.sh 0 `
+
+
+## Stargazers over time
+
+[![Stargazers over time](https://starchart.cc/oliverck/zsh-anywhere.svg)](https://starchart.cc/oliverck/zsh-anywhere)
