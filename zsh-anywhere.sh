@@ -57,6 +57,34 @@ cd $SOURCE_DIR
 cp ./configs/.zshrc ~/
 
 
+read -p "Do you want to change the default shell to zsh? (y/n): " choice
+
+if [ "$choice" = "y" ]; then
+    # Get available shell programs from /etc/shells and remove comments
+    available_shells=($(grep -v '^#' /etc/shells))
+
+    # Check if "zsh" is in the list of available shells
+    zsh_found=false
+    for shell in "${available_shells[@]}"; do
+    if [[ $shell == *"zsh"* ]]; then
+        echo "zsh is available"
+        chsh -s "$shell"
+        echo "Set Zsh as default shell"
+        zsh_found=true
+        break
+    fi
+    done
+    # If zsh is not found, execute the specified program
+    if [[ $zsh_found == false ]]; then
+        echo "zsh not found in system. Modifying shell configuration file."
+        echo "export SHELL=~/.local/bin/zsh" >> ~/.bashrc
+        echo "exec ~/.local/bin/zsh -l" >> ~/.bashrc
+        echo "Default shell updated in bashrc. Please restart the terminal to apply changes."
+    fi
+else
+  echo "Default shell remains unchanged."
+fi
+
 printf "\033[1;32m zsh-anywhere install finish \033[0m \n"
 printf "\033[1;32m The default shell for the user is "
 printf `echo $SHELL`

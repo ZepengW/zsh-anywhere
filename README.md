@@ -9,8 +9,16 @@ One command to install Zsh and configure various plugins and themes.
 
 ## Getting Started
 
+### Requirements
+- `git`
+- `zsh` (optional)
+
+If you don't have permission to install `zsh` on your system, our script will automatically install `zsh` to your home path.
+
 ### Deploy quickly
 ```bash
+git clone https://github.com/oliverck/zsh-anywhere.git
+cd zsh-anywhere
 sh zsh-anywhere.sh
 ```
 
