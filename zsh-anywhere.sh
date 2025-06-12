@@ -28,8 +28,10 @@ fi
 printf "\033[1;32mStep[2/%d]\033[0m \033[1;33mInstall oh-my-zsh\033[0m\n" $NUM_STEP
 if [ ! -d "~/.oh-my-zsh" ]; then
     if [ $CN == '1' ]; then
+        echo "clone from https://gitee.com/oliverck/ohmyzsh.git"
         git clone https://gitee.com/oliverck/ohmyzsh.git ~/.oh-my-zsh
     else
+        echo "clone from https://github.com/ohmyzsh/ohmyzsh.git"
         git clone https://github.com/ohmyzsh/ohmyzsh.git ~/.oh-my-zsh
     fi
 else
@@ -41,8 +43,10 @@ cd ~/.oh-my-zsh/plugins
 printf "\033[1;32mInstall plugin: zsh-autosuggestions\033[0m\n"
 if [ ! -d "./zsh-autosuggestions" ]; then
     if [ $CN == '1' ]; then
+        echo "clone from https://gitee.com/oliverck/zsh-autosuggestions.git"
         git clone https://gitee.com/oliverck/zsh-autosuggestions.git
     else
+        echo "clone from https://github.com/zsh-users/zsh-autosuggestions.git"
         git clone https://github.com/zsh-users/zsh-autosuggestions.git
     fi
 else
