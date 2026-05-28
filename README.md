@@ -17,25 +17,25 @@
 ```bash
 git clone https://github.com/oliverck/zsh-anywhere.git
 cd zsh-anywhere
-sh zsh-anywhere.sh
+bash zsh-anywhere.sh
 ```
 
 兼容旧参数：
 
-- `sh zsh-anywhere.sh 1`：使用 CN 镜像策略（默认）
-- `sh zsh-anywhere.sh 0`：使用 global 镜像策略
+- `bash zsh-anywhere.sh 1`：使用 CN 镜像策略（默认）
+- `bash zsh-anywhere.sh 0`：使用 global 镜像策略
 
 ---
 
 ## 配置化部署（推荐）
 
-默认配置文件：`/tmp/workspace/ZepengW/zsh-anywhere/configs/zsh-anywhere.conf`
+默认配置文件：`./configs/zsh-anywhere.conf`
 
 可复制并自定义：
 
 ```bash
 cp ./configs/zsh-anywhere.conf ./my-zsh.conf
-sh zsh-anywhere.sh --config ./my-zsh.conf
+bash zsh-anywhere.sh --config ./my-zsh.conf
 ```
 
 支持参数：

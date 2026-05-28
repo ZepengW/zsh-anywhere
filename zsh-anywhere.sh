@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec bash "$0" "$@"
+fi
+
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -10,7 +14,7 @@ AUTO_CONFIRM_OVERRIDE=""
 
 print_help() {
   cat <<'USAGE'
-Usage: sh zsh-anywhere.sh [0|1] [--config FILE] [--mirror cn|global] [--yes]
+Usage: bash zsh-anywhere.sh [0|1] [--config FILE] [--mirror cn|global] [--yes]
 
 Options:
   0                     Use global mirror (compatibility mode)
@@ -33,10 +37,18 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --config)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        echo "Missing value for --config"
+        exit 1
+      fi
       CONFIG_FILE="$2"
       shift 2
       ;;
     --mirror)
+      if [[ $# -lt 2 || "$2" == --* ]]; then
+        echo "Missing value for --mirror (cn|global)"
+        exit 1
+      fi
       MIRROR_MODE_OVERRIDE="$2"
       shift 2
       ;;
@@ -72,6 +84,7 @@ ZSH_THEME="robbyrussell"
 OMZ_PLUGINS=(git)
 THIRD_PARTY_PLUGINS=(
   "zsh-autosuggestions|https://github.com/zsh-users/zsh-autosuggestions.git|https://gitee.com/mirrors/zsh-autosuggestions.git"
+  # No stable CN mirror configured by default; global URL is used.
   "zsh-syntax-highlighting|https://github.com/zsh-users/zsh-syntax-highlighting.git|"
 )
 
@@ -150,7 +163,7 @@ clone_or_update_repo() {
     echo "Repository already exists: $target_dir"
     if is_true "$UPDATE_EXISTING_REPOS"; then
       echo "Updating: $target_dir"
-      git -C "$target_dir" pull --ff-only || echo "Warning: failed to update $target_dir"
+      git -C "$target_dir" pull --ff-only || echo "Warning: failed to update $target_dir" >&2
     fi
     return 0
   fi
@@ -170,19 +183,47 @@ clone_or_update_repo() {
 
 try_install_zsh_with_package_manager() {
   if command -v apt-get >/dev/null 2>&1; then
-    sudo apt-get update && sudo apt-get install -y zsh && return 0
+    echo "Trying apt-get to install zsh..."
+    if sudo apt-get update && sudo apt-get install -y zsh; then
+      return 0
+    fi
+    echo "apt-get install zsh failed." >&2
   elif command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y zsh && return 0
+    echo "Trying dnf to install zsh..."
+    if sudo dnf install -y zsh; then
+      return 0
+    fi
+    echo "dnf install zsh failed." >&2
   elif command -v yum >/dev/null 2>&1; then
-    sudo yum install -y zsh && return 0
+    echo "Trying yum to install zsh..."
+    if sudo yum install -y zsh; then
+      return 0
+    fi
+    echo "yum install zsh failed." >&2
   elif command -v pacman >/dev/null 2>&1; then
-    sudo pacman -Sy --noconfirm zsh && return 0
+    echo "Trying pacman to install zsh..."
+    if sudo pacman -Sy --noconfirm zsh; then
+      return 0
+    fi
+    echo "pacman install zsh failed." >&2
   elif command -v zypper >/dev/null 2>&1; then
-    sudo zypper --non-interactive install zsh && return 0
+    echo "Trying zypper to install zsh..."
+    if sudo zypper --non-interactive install zsh; then
+      return 0
+    fi
+    echo "zypper install zsh failed." >&2
   elif command -v apk >/dev/null 2>&1; then
-    sudo apk add zsh && return 0
+    echo "Trying apk to install zsh..."
+    if sudo apk add zsh; then
+      return 0
+    fi
+    echo "apk install zsh failed." >&2
   elif command -v brew >/dev/null 2>&1; then
-    brew install zsh && return 0
+    echo "Trying brew to install zsh..."
+    if brew install zsh; then
+      return 0
+    fi
+    echo "brew install zsh failed." >&2
   fi
 
   return 1
@@ -207,8 +248,17 @@ install_zsh_from_source() {
   fi
 
   tar -xf "$tmp_dir/zsh.tar.xz" -C "$tmp_dir"
-  local source_dir
-  source_dir=$(find "$tmp_dir" -maxdepth 1 -type d -name 'zsh-*' | head -n 1)
+  local source_dir=""
+  local candidate
+
+  shopt -s nullglob
+  for candidate in "$tmp_dir"/zsh-*; do
+    if [[ -d "$candidate" ]]; then
+      source_dir="$candidate"
+      break
+    fi
+  done
+  shopt -u nullglob
 
   if [[ -z "$source_dir" ]]; then
     echo "Error: zsh source extraction failed."
@@ -282,7 +332,7 @@ install_plugins() {
   for entry in "${THIRD_PARTY_PLUGINS[@]}"; do
     IFS='|' read -r name global_url cn_url <<< "$entry"
     if [[ -z "$name" || -z "$global_url" ]]; then
-      echo "Skip invalid plugin entry: $entry"
+      echo "Skip invalid plugin entry (missing name or global URL): $entry"
       continue
     fi
 
@@ -309,7 +359,7 @@ build_plugin_list() {
 }
 
 escape_sed_replacement() {
-  printf '%s' "$1" | sed -e 's/[\\/&]/\\&/g'
+  printf '%s' "$1" | sed -e 's/[\\/&|]/\\&/g'
 }
 
 render_zshrc() {
@@ -321,6 +371,10 @@ render_zshrc() {
   fi
 
   plugins_string=$(build_plugin_list)
+  if [[ "$ZSH_THEME" == *$'\n'* || "$plugins_string" == *$'\n'* ]]; then
+    echo "Configuration error: ZSH_THEME and plugin names must not contain newline characters"
+    return 1
+  fi
   escaped_theme=$(escape_sed_replacement "$ZSH_THEME")
   escaped_plugins=$(escape_sed_replacement "$plugins_string")
 
@@ -349,7 +403,11 @@ try_set_default_shell() {
     target_shell="$HOME/.local/bin/zsh"
   fi
 
-  current_shell=$(getent passwd "$(whoami)" | cut -d: -f7)
+  if command -v getent >/dev/null 2>&1; then
+    current_shell=$(getent passwd "$(whoami)" | cut -d: -f7)
+  else
+    current_shell="${SHELL:-/bin/sh}"
+  fi
   if [[ "$current_shell" == "$target_shell" ]]; then
     echo "Default shell is already zsh."
     return 0
@@ -387,7 +445,8 @@ try_set_default_shell() {
   {
     echo ""
     echo "### zsh-anywhere bootstrap ###"
-    echo "if [ -x \"$target_shell\" ]; then"
+    echo "if [ -z \"\$ZSH_ANYWHERE_BOOTSTRAP_GUARD\" ] && [ -x \"$target_shell\" ]; then"
+    echo "  export ZSH_ANYWHERE_BOOTSTRAP_GUARD=1"
     echo "  exec \"$target_shell\""
     echo "fi"
   } >> "$startup_file"
